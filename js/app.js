@@ -1,16 +1,16 @@
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyAneI5M2MU8cLMP0e_cI8-xknjb4vZywS0",
-  authDomain: "newprojac.firebaseapp.com",
-  databaseURL: "https://newprojac-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "newprojac",
-  storageBucket: "newprojac.firebasestorage.app",
-  messagingSenderId: "108812475894",
-  appId: "1:108812475894:web:0627c3267ba94fd9457bd7",
-  measurementId: "G-9GY09Z3E4E"
+  apiKey: "AIzaSyCnmgW3GByHOamgChUAmGhJ2ovYluXf6qc",
+  authDomain: "ninja-200s.firebaseapp.com",
+  databaseURL: "https://ninja-200s-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "ninja-200s",
+  storageBucket: "ninja-200s.firebasestorage.app",
+  messagingSenderId: "1076985111103",
+  appId: "1:1076985111103:web:4112ff8923f668aa9f8e8a",
+  measurementId: "G-5K8W9XM97T"
 };
 
-const BOT_TOKEN = "8711918080:AAGvBK5U-l-Aa84rol4wTyEs8hUyFv2TX88";
-const ADMIN_PASSWORDS = ["123456"];
+const BOT_TOKEN = "8591215569:AAHrJNyxOovCnQzxYJSDWzfDUwOuyRxODGs";
+const ADMIN_PASSWORDS = ["Mostafa$500"];
 const ADMIN_TELEGRAM_ID = "1891231976";
 
 class AdminPanel {
@@ -178,6 +178,9 @@ class AdminPanel {
       case 'broadcast':
         await this.renderBroadcast();
         break;
+      case 'settings':
+        await this.renderSettings();
+        break;
       default:
         await this.renderDashboard();
     }
@@ -190,7 +193,8 @@ class AdminPanel {
       'tasks': 'Tasks Management',
       'promoCodes': 'Promo Codes',
       'withdrawals': 'Withdrawals',
-      'broadcast': 'Broadcast'
+      'broadcast': 'Broadcast',
+      'settings': 'Settings'
     };
     return titles[pageName] || 'Dashboard';
   }
@@ -2250,6 +2254,132 @@ class AdminPanel {
     } catch (error) {
       console.error(`Telegram error for ${chatId}:`, error);
       throw error;
+    }
+  }
+
+  async renderSettings() {
+    this.elements.contentArea.innerHTML = `
+      <div class="settings-page">
+        <div class="page-header">
+          <h2><i class="fas fa-cogs"></i> Settings</h2>
+          <p>Configure application global settings</p>
+        </div>
+        
+        <div class="settings-management">
+          <div class="card">
+            <h3><i class="fas fa-wallet"></i> Wallet Settings</h3>
+            <div class="form-group">
+              <label>Deposit Wallet (TON Address)</label>
+              <input type="text" id="tonWallet" placeholder="EQD... or UQD...">
+              <small>TON wallet address for deposits</small>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3><i class="fas fa-coins"></i> Withdrawal Settings</h3>
+            <div class="form-group">
+              <label>Minimum Withdrawal (TON)</label>
+              <input type="number" id="minimumWithdraw" step="0.1" min="0.1" placeholder="1.0">
+              <small>Minimum amount users can withdraw</small>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3><i class="fas fa-user-friends"></i> Referral Settings</h3>
+            <div class="form-group">
+              <label>Referral Bonus (TON)</label>
+              <input type="number" id="referralBonus" step="0.01" min="0" placeholder="0.50">
+              <small>Bonus given to user for each referral</small>
+            </div>
+            <div class="form-group">
+              <label>Referrals Commissions (%)</label>
+              <input type="number" id="referralPercentage" step="0.5" min="0" max="100" placeholder="5">
+              <small>Percentage commission from referral earnings</small>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3><i class="fas fa-tasks"></i> Task & Reward Settings</h3>
+            <div class="form-group">
+              <label>Default Task Reward (TON)</label>
+              <input type="number" id="taskRewardSetting" step="0.0001" min="0.0001" placeholder="0.001">
+              <small>Default reward for new tasks</small>
+            </div>
+            <div class="form-group">
+              <label>Reward AD (TON)</label>
+              <input type="number" id="adRewardTon" step="0.0001" min="0.0001" placeholder="0.0005">
+              <small>Reward for watching advertisements</small>
+            </div>
+          </div>
+          
+          <div class="settings-actions">
+            <button class="action-btn btn-success" onclick="admin.saveSettings()">
+              <i class="fas fa-save"></i> Save All Settings
+            </button>
+            <button class="action-btn btn-secondary" onclick="admin.loadSettings()">
+              <i class="fas fa-sync-alt"></i> Reset / Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    await this.loadSettings();
+  }
+
+  async loadSettings() {
+    try {
+      const settingsRef = this.db.ref('settings');
+      const snapshot = await settingsRef.once('value');
+      const settings = snapshot.val() || {};
+      
+      const setValue = (id, value, defaultValue = '') => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.value = (value !== undefined && value !== null) ? value : defaultValue;
+        }
+      };
+      
+      setValue('tonWallet', settings.tonWallet, '');
+      setValue('minimumWithdraw', settings.minimumWithdraw, '1.0');
+      setValue('referralBonus', settings.referralBonus, '0.50');
+      setValue('referralPercentage', settings.referralPercentage, '5');
+      setValue('taskRewardSetting', settings.taskReward, '0.001');
+      setValue('adRewardTon', settings.adRewardTon, '0.0005');
+      
+    } catch (error) {
+      console.error("Error loading settings:", error);
+      this.showNotification("Error", "Failed to load settings", "error");
+    }
+  }
+
+  async saveSettings() {
+    try {
+      const settingsData = {
+        tonWallet: document.getElementById('tonWallet')?.value.trim() || '',
+        minimumWithdraw: parseFloat(document.getElementById('minimumWithdraw')?.value) || 1.0,
+        referralBonus: parseFloat(document.getElementById('referralBonus')?.value) || 0.50,
+        referralPercentage: parseFloat(document.getElementById('referralPercentage')?.value) || 5,
+        taskReward: parseFloat(document.getElementById('taskRewardSetting')?.value) || 0.001,
+        adRewardTon: parseFloat(document.getElementById('adRewardTon')?.value) || 0.0005,
+        updatedAt: Date.now(),
+        updatedBy: 'admin'
+      };
+      
+      if (settingsData.minimumWithdraw < 0) settingsData.minimumWithdraw = 0;
+      if (settingsData.referralBonus < 0) settingsData.referralBonus = 0;
+      if (settingsData.referralPercentage < 0) settingsData.referralPercentage = 0;
+      if (settingsData.referralPercentage > 100) settingsData.referralPercentage = 100;
+      if (settingsData.taskReward < 0) settingsData.taskReward = 0;
+      if (settingsData.adRewardTon < 0) settingsData.adRewardTon = 0;
+      
+      await this.db.ref('settings').update(settingsData);
+      
+      this.showNotification("Success", "Settings saved successfully!", "success");
+      
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      this.showNotification("Error", "Failed to save settings", "error");
     }
   }
 
