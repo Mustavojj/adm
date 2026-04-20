@@ -1,16 +1,16 @@
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCnmgW3GByHOamgChUAmGhJ2ovYluXf6qc",
-  authDomain: "ninja-200s.firebaseapp.com",
-  databaseURL: "https://ninja-200s-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "ninja-200s",
-  storageBucket: "ninja-200s.firebasestorage.app",
-  messagingSenderId: "1076985111103",
-  appId: "1:1076985111103:web:4112ff8923f668aa9f8e8a",
-  measurementId: "G-5K8W9XM97T"
+  apiKey: "AIzaSyAneI5M2MU8cLMP0e_cI8-xknjb4vZywS0",
+  authDomain: "newprojac.firebaseapp.com",
+  databaseURL: "https://newprojac-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "newprojac",
+  storageBucket: "newprojac.firebasestorage.app",
+  messagingSenderId: "108812475894",
+  appId: "1:108812475894:web:0627c3267ba94fd9457bd7",
+  measurementId: "G-9GY09Z3E4E"
 };
 
-const BOT_TOKEN = "8591215569:AAHrJNyxOovCnQzxYJSDWzfDUwOuyRxODGs";
-const ADMIN_PASSWORDS = ["Mostafa$500"];
+const BOT_TOKEN = "8711918080:AAGvBK5U-l-Aa84rol4wTyEs8hUyFv2TX88";
+const ADMIN_PASSWORDS = ["123456"];
 const ADMIN_TELEGRAM_ID = "1891231976";
 
 class AdminPanel {
