@@ -999,7 +999,7 @@ class AdminPanel {
       const typeClass = task.category === 'partner' ? 'type-partner' : 'type-social';
       const typeText = task.category === 'partner' ? 'Partner' : 'Social';
       const isCompleted = progress >= 100;
-      const imageUrl = task.picture || 'https://cdn-icons-png.flaticon.com/512/15208/15208522.png';
+      const imageUrl = task.picture || 'https://i.ibb.co/Kj9Spc3R/file-0000000030c47246abd539cab2933811.png';
       
       html += `
         <div class="task-item ${isCompleted ? 'completed' : ''}">
