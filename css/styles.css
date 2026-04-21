@@ -2094,3 +2094,170 @@ body {
 .status-indicator::before {
   content: 'LIVE';
 }
+
+/* Firebase UID Page Styles */
+.firebase-uid-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px 0;
+}
+
+.uid-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+}
+
+.uid-card {
+  background: var(--bg-card);
+  border-radius: var(--border-radius);
+  padding: 40px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 600px;
+}
+
+.uid-icon {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border-radius: 50%;
+  display: flex;
+align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 36px;
+  color: white;
+  box-shadow: 0 0 20px rgba(58, 134, 255, 0.3);
+}
+
+.uid-title {
+  font-size: 1.2rem;
+  color: var(--text-light);
+  margin-bottom: 20px;
+  letter-spacing: 1px;
+}
+
+.uid-value-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 15px 20px;
+  margin-bottom: 30px;
+  word-break: break-all;
+}
+
+.uid-value {
+  flex: 1;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: var(--primary);
+  background: transparent;
+  border: none;
+  outline: none;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.uid-copy-btn {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.uid-copy-btn:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
+}
+
+.uid-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 25px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+}
+
+.uid-info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--text-light);
+  padding: 5px 0;
+}
+
+.uid-info-item i {
+  width: 24px;
+  color: var(--primary);
+  font-size: 1rem;
+}
+
+.uid-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--border-radius-sm);
+  padding: 12px 15px;
+  text-align: left;
+  border-left: 3px solid var(--primary);
+}
+
+.uid-note i {
+  color: var(--primary);
+  margin-right: 8px;
+}
+
+/* Responsive for Firebase UID page */
+@media (max-width: 768px) {
+  .uid-card {
+    padding: 25px;
+  }
+  
+  .uid-value-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .uid-copy-btn {
+    justify-content: center;
+  }
+  
+  .uid-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 480px) {
+  .uid-card {
+    padding: 20px;
+  }
+  
+  .uid-title {
+    font-size: 1rem;
+  }
+  
+  .uid-info-item {
+    font-size: 0.8rem;
+  }
+    }
