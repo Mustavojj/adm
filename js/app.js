@@ -3255,8 +3255,8 @@ class AdminPanel {
     this.elements.contentArea.innerHTML = `
       <div class="firebase-uid-page">
         <div class="page-header">
-          <h2><i class="fas fa-fingerprint"></i> Firebase UID</h2>
-          <p>Your Firebase Authentication Unique Identifier</p>
+          <h2><i class="fas fa-fingerprint"></i>YOUR UID</h2>
+          <p>Your Authentication Unique Identifier</p>
         </div>
         
         <div class="uid-container">
@@ -3282,7 +3282,7 @@ class AdminPanel {
               </div>
               <div class="uid-info-item">
                 <i class="fas fa-database"></i>
-                <span>Firebase Project: STAR Z</span>
+                <span>Project: COINTOCASH</span>
               </div>
             </div>
             <div class="uid-note">
