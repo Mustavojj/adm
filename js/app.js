@@ -3287,7 +3287,7 @@ class AdminPanel {
             </div>
             <div class="uid-note">
               <i class="fas fa-info-circle"></i>
-              This UID is unique to your Firebase Authentication session. You can use this ID for reference in admin activities and API calls.
+              You can use this UID for reference in admin activities and API calls.
             </div>
           </div>
         </div>
