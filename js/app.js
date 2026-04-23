@@ -1,19 +1,19 @@
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyAneI5M2MU8cLMP0e_cI8-xknjb4vZywS0",
-  authDomain: "newprojac.firebaseapp.com",
-  databaseURL: "https://newprojac-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "newprojac",
-  storageBucket: "newprojac.firebasestorage.app",
-  messagingSenderId: "108812475894",
-  appId: "1:108812475894:web:0627c3267ba94fd9457bd7",
-  measurementId: "G-9GY09Z3E4E"
-};
+  apiKey: "AIzaSyBdX9yaTJ5KJ8agE_pz0r8AM62VFcy5toI",
+  authDomain: "stars-pop.firebaseapp.com",
+  databaseURL: "https://stars-pop-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "stars-pop",
+  storageBucket: "stars-pop.firebasestorage.app",
+  messagingSenderId: "903403392954",
+  appId: "1:903403392954:web:63dac39d99222f76069783",
+  measurementId: "G-ZD8JYN8DPN"
+}; 
 
-const BOT_TOKEN = "8711918080:AAGvBK5U-l-Aa84rol4wTyEs8hUyFv2TX88";
+const BOT_TOKEN = "8302653359:AAHUifg3Olt-YwoK0hZUOrVQH-6pQ37ors4";
 const ADMIN_PASSWORDS = ["Mostafa$500"];
-const ADMIN_TELEGRAM_ID = "1985474484";
+const ADMIN_TELEGRAM_ID = "1891231976";
 
-const DEFAULT_IMAGE_URL = "https://i.ibb.co/Kj9Spc3R/file-0000000030c47246abd539cab2933811.png";
+const DEFAULT_IMAGE_URL = "https://i.ibb.co/XxXhyZYf/file-000000006f8c720e9ab4c76b6e560062.png";
 
 class AdminPanel {
   constructor() {
@@ -22,11 +22,16 @@ class AdminPanel {
     this.currentUser = null;
     this.botToken = BOT_TOKEN;
     this.isProcessingQueue = false;
-    this.currentTaskTab = 'main';
+    this.currentTaskTab = 'partner';
     this.settings = {
-      withdrawalMessage: "<b>🚀 Your withdrawal has been approved!\n\nꘜ Amount: {amount} TON\n\nꘜ Wallet: {wallet}\n\n♡ Thanks for using STAR Z!</b>",
-      withdrawalImage: "",
-      withdrawalButtons: []
+      tonWallet: "",
+      minimumWithdraw: 0.05,
+      referralBonus: 0.003,
+      referralPercentage: 10,
+      taskReward: 0.001,
+      taskPrice100: 0.10,
+      adRewardTon: 0.001,
+      welcomeTasks: []
     };
     
     this.elements = {
@@ -45,7 +50,6 @@ class AdminPanel {
     };
     
     this.initializeFirebase();
-    this.loadSettings();
   }
 
   async initializeFirebase() {
@@ -60,11 +64,44 @@ class AdminPanel {
       console.log("✅ Firebase initialized successfully");
       
       this.setupEventListeners();
+      await this.loadSettings();
       await this.loadAndProcessPendingBroadcasts();
       
     } catch (error) {
       console.error("❌ Firebase initialization error:", error);
       this.showLoginMessage("Failed to initialize Firebase", "error");
+    }
+  }
+
+  async loadSettings() {
+    try {
+      const settingsSnap = await this.db.ref('settings').once('value');
+      if (settingsSnap.exists()) {
+        const fbSettings = settingsSnap.val();
+        this.settings = {
+          tonWallet: fbSettings.tonWallet || "",
+          minimumWithdraw: fbSettings.minimumWithdraw !== undefined ? fbSettings.minimumWithdraw : 0.05,
+          referralBonus: fbSettings.referralBonus !== undefined ? fbSettings.referralBonus : 0.003,
+          referralPercentage: fbSettings.referralPercentage !== undefined ? fbSettings.referralPercentage : 10,
+          taskReward: fbSettings.taskReward !== undefined ? fbSettings.taskReward : 0.001,
+          taskPrice100: fbSettings.taskPrice100 !== undefined ? fbSettings.taskPrice100 : 0.10,
+          adRewardTon: fbSettings.adRewardTon !== undefined ? fbSettings.adRewardTon : 0.001,
+          welcomeTasks: fbSettings.welcomeTasks || []
+        };
+      }
+    } catch (error) {
+      console.error("Error loading settings:", error);
+    }
+  }
+
+  async saveSingleSetting(key, value) {
+    try {
+      await this.db.ref(`settings/${key}`).set(value);
+      this.settings[key] = value;
+      this.showNotification("Success", `${key} saved successfully`, "success");
+    } catch (error) {
+      console.error(`Error saving ${key}:`, error);
+      this.showNotification("Error", `Failed to save ${key}`, "error");
     }
   }
 
@@ -100,19 +137,6 @@ class AdminPanel {
     } catch (error) {
       console.error("Error loading pending broadcasts:", error);
     }
-  }
-
-  loadSettings() {
-    const saved = localStorage.getItem('starz_settings');
-    if (saved) {
-      try {
-        this.settings = JSON.parse(saved);
-      } catch(e) {}
-    }
-  }
-
-  saveSettings() {
-    localStorage.setItem('starz_settings', JSON.stringify(this.settings));
   }
 
   setupEventListeners() {
@@ -183,6 +207,9 @@ class AdminPanel {
       const isValid = ADMIN_PASSWORDS.includes(password);
       
       if (isValid) {
+        this.currentUser = userCredential.user;
+        console.log("✅ User UID saved:", this.currentUser.uid);
+        
         this.showLoginMessage("Login successful!", "success");
         
         setTimeout(() => {
@@ -239,9 +266,6 @@ class AdminPanel {
       case 'settings':
         await this.renderSettings();
         break;
-      case 'firebaseUid':
-        await this.renderFirebaseUid();
-        break;
       default:
         await this.renderDashboard();
     }
@@ -255,13 +279,15 @@ class AdminPanel {
       'promoCodes': 'Promo Codes',
       'withdrawals': 'Withdrawals',
       'broadcast': 'Broadcast',
-      'settings': 'Settings',
-      'firebaseUid': 'Firebase UID'
+      'settings': 'Settings'
     };
     return titles[pageName] || 'Dashboard';
   }
 
   async renderDashboard() {
+    const user = this.auth.currentUser;
+    const uid = user ? user.uid : (this.currentUser ? this.currentUser.uid : 'Not authenticated');
+    
     this.elements.contentArea.innerHTML = `
       <div class="dashboard-page">
         <div class="page-header">
@@ -313,10 +339,6 @@ class AdminPanel {
                     <span class="stat-value" id="totalTasksStat">0</span>
                   </div>
                   <div class="stat-item">
-                    <span class="stat-label">Main Tasks</span>
-                    <span class="stat-value" id="mainTasksStat">0</span>
-                  </div>
-                  <div class="stat-item">
                     <span class="stat-label">Partner Tasks</span>
                     <span class="stat-value" id="partnerTasksStat">0</span>
                   </div>
@@ -328,11 +350,43 @@ class AdminPanel {
               </div>
             </div>
           </div>
+          
+          <div class="uid-card-dashboard">
+            <div class="uid-card-header">
+              <i class="fas fa-fingerprint"></i>
+              <h3>YOUR UID</h3>
+            </div>
+            <div class="uid-card-content">
+              <code class="uid-code" id="dashboardUidValue">${uid}</code>
+              <button class="uid-copy-btn-dashboard" onclick="admin.copyDashboardUid()">
+                <i class="fas fa-copy"></i> Copy
+              </button>
+            </div>
+            <p class="uid-card-note">
+              <i class="fas fa-info-circle"></i> Your Firebase Authentication Unique Identifier
+            </p>
+          </div>
         </div>
       </div>
     `;
     
     await this.loadDashboardData();
+  }
+
+  copyDashboardUid() {
+    const user = this.auth.currentUser;
+    const uid = user ? user.uid : (this.currentUser ? this.currentUser.uid : '');
+    
+    if (!uid || uid === 'Not authenticated') {
+      this.showNotification("Error", "No UID available", "error");
+      return;
+    }
+    
+    navigator.clipboard.writeText(uid).then(() => {
+      this.showNotification("Copied", "Firebase UID copied to clipboard", "success");
+    }).catch(() => {
+      this.showNotification("Error", "Failed to copy UID", "error");
+    });
   }
 
   async loadDashboardData() {
@@ -343,12 +397,10 @@ class AdminPanel {
       const totalUsers = appStats.totalUsers || 0;
       const totalPayments = appStats.totalPayments || 0;
       const totalWithdrawals = appStats.totalWithdrawals || 0;
-      const totalAppTasks = appStats.totalTasks || 0;
       
       const configTasksSnap = await this.db.ref('config/tasks').once('value');
       const userTasksSnap = await this.db.ref('config/userTasks').once('value');
       
-      let mainTasks = 0;
       let partnerTasks = 0;
       let socialTasks = 0;
       let completedTasksCount = 0;
@@ -356,9 +408,8 @@ class AdminPanel {
       if (configTasksSnap.exists()) {
         configTasksSnap.forEach(child => {
           const task = child.val();
-          if (task.status !== 'deleted') {
-            if (task.category === 'main') mainTasks++;
-            if (task.category === 'partner') partnerTasks++;
+          if (task.status === 'active') {
+            partnerTasks++;
             if (task.currentCompletions >= task.maxCompletions) completedTasksCount++;
           }
         });
@@ -376,7 +427,7 @@ class AdminPanel {
         });
       }
       
-      const totalTasksDisplay = mainTasks + partnerTasks + socialTasks;
+      const totalTasksDisplay = partnerTasks + socialTasks;
       
       document.getElementById('dashboardLoading').style.display = 'none';
       document.getElementById('dashboardContent').style.display = 'block';
@@ -386,7 +437,6 @@ class AdminPanel {
       document.getElementById('totalWithdrawalsStat').textContent = totalWithdrawals;
       document.getElementById('completedTasksStat').textContent = completedTasksCount;
       document.getElementById('totalTasksStat').textContent = totalTasksDisplay;
-      document.getElementById('mainTasksStat').textContent = mainTasks;
       document.getElementById('partnerTasksStat').textContent = partnerTasks;
       document.getElementById('socialTasksStat').textContent = socialTasks;
       
@@ -1040,13 +1090,13 @@ class AdminPanel {
       <div class="tasks-page">
         <div class="page-header">
           <h2><i class="fas fa-list-check"></i> Tasks Management</h2>
-          <p>Create and manage Main, Partner & Social tasks</p>
+          <p>Create and manage Partner & Social tasks</p>
         </div>
         
         <div class="search-section">
           <div class="search-box">
             <i class="fas fa-search"></i>
-            <input type="text" id="searchTaskInput" placeholder="Search task by name or owner ID">
+            <input type="text" id="searchTaskInput" placeholder="Search task by name">
             <button class="search-btn" onclick="admin.searchTask()">
               <i class="fas fa-search"></i> Search
             </button>
@@ -1063,8 +1113,7 @@ class AdminPanel {
               
               <div class="form-group">
                 <label>Task Name *</label>
-                <input type="text" id="taskName" placeholder="Join our channel" maxlength="15">
-                <small>Maximum 15 characters</small>
+                <input type="text" id="taskName" placeholder="Join our channel" maxlength="30">
               </div>
               
               <div class="form-group">
@@ -1073,7 +1122,7 @@ class AdminPanel {
               </div>
               
               <div class="form-group">
-                <label>Task Image URL (Optional)</label>
+                <label>Task Image URL</label>
                 <input type="text" id="taskImage" placeholder="https://example.com/image.jpg">
                 <small>Leave empty for default image</small>
               </div>
@@ -1081,10 +1130,7 @@ class AdminPanel {
               <div class="form-group">
                 <label>Task Category *</label>
                 <div class="type-selector">
-                  <button class="type-btn active" data-type="main">
-                    <i class="fas fa-star"></i> Main
-                  </button>
-                  <button class="type-btn" data-type="partner">
+                  <button class="type-btn active" data-type="partner">
                     <i class="fas fa-handshake"></i> Partner
                   </button>
                   <button class="type-btn" data-type="social">
@@ -1100,9 +1146,17 @@ class AdminPanel {
               </div>
               
               <div class="form-group">
+                <label>Task Type</label>
+                <select id="taskType">
+                  <option value="channel">Channel</option>
+                  <option value="group">Group</option>
+                  <option value="website">Website</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
                 <label>Task Reward (TON) *</label>
-                <input type="number" id="taskReward" step="0.001" min="0.001" value="0.02">
-                <small>Main: 0.02 | Partner: 0.01 | Social: Custom</small>
+                <input type="number" id="taskReward" step="0.001" min="0.001" value="0.01">
               </div>
               
               <div class="form-group">
@@ -1110,7 +1164,7 @@ class AdminPanel {
                 <input type="number" id="taskMaxCompletions" value="100" min="1">
               </div>
               
-              <div class="form-group">
+              <div class="form-group" id="verificationField" style="display: none;">
                 <label>Verification Required</label>
                 <select id="taskVerification">
                   <option value="NO">No verification</option>
@@ -1134,8 +1188,7 @@ class AdminPanel {
               </div>
               
               <div class="task-tabs">
-                <button class="task-tab active" data-tab="main">Main</button>
-                <button class="task-tab" data-tab="partner">Partner</button>
+                <button class="task-tab active" data-tab="partner">Partner</button>
                 <button class="task-tab" data-tab="social">Social</button>
               </div>
               
@@ -1159,7 +1212,7 @@ class AdminPanel {
   setupTaskTypeButtons() {
     const buttons = document.querySelectorAll('.type-btn');
     const ownerField = document.getElementById('ownerIdField');
-    const rewardInput = document.getElementById('taskReward');
+    const verificationField = document.getElementById('verificationField');
     
     buttons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1168,15 +1221,12 @@ class AdminPanel {
         
         const taskType = btn.dataset.type;
         
-        if (taskType === 'main') {
-          rewardInput.value = '0.02';
+        if (taskType === 'partner') {
           if (ownerField) ownerField.style.display = 'none';
-        } else if (taskType === 'partner') {
-          rewardInput.value = '0.01';
-          if (ownerField) ownerField.style.display = 'none';
+          if (verificationField) verificationField.style.display = 'none';
         } else if (taskType === 'social') {
-          rewardInput.value = '0.005';
           if (ownerField) ownerField.style.display = 'block';
+          if (verificationField) verificationField.style.display = 'block';
         }
       });
     });
@@ -1209,10 +1259,10 @@ class AdminPanel {
       if (configTasksSnap.exists()) {
         configTasksSnap.forEach(child => {
           const task = child.val();
-          if (task.status !== 'deleted' && task.name.toLowerCase().includes(searchTerm)) {
+          if (task.status === 'active' && task.name && task.name.toLowerCase().includes(searchTerm)) {
             allTasks.push({
               id: child.key,
-              source: 'config',
+              source: 'partner',
               ...task
             });
           }
@@ -1224,12 +1274,11 @@ class AdminPanel {
         userTasksSnap.forEach(owner => {
           owner.forEach(task => {
             const taskData = task.val();
-            const ownerId = owner.key;
-            if ((taskData.name && taskData.name.toLowerCase().includes(searchTerm)) || (ownerId && ownerId.includes(searchTerm))) {
+            if (taskData.status === 'active' && taskData.name && taskData.name.toLowerCase().includes(searchTerm)) {
               allTasks.push({
                 id: task.key,
                 ownerId: owner.key,
-                source: 'userTasks',
+                source: 'social',
                 ...taskData
               });
             }
@@ -1237,13 +1286,7 @@ class AdminPanel {
         });
       }
       
-      allTasks = allTasks.filter(t => {
-        if (this.currentTaskTab === 'main') return t.category === 'main';
-        if (this.currentTaskTab === 'partner') return t.category === 'partner';
-        if (this.currentTaskTab === 'social') return t.source === 'userTasks' || t.category === 'social';
-        return true;
-      });
-      
+      allTasks = allTasks.filter(t => t.category === this.currentTaskTab);
       this.displayTasks(allTasks);
       
     } catch (error) {
@@ -1261,42 +1304,40 @@ class AdminPanel {
     try {
       let tasks = [];
       
-      const configTasksSnap = await this.db.ref('config/tasks').once('value');
-      if (configTasksSnap.exists()) {
-        configTasksSnap.forEach(child => {
-          const task = child.val();
-          if (task.status !== 'deleted') {
-            tasks.push({
-              id: child.key,
-              source: 'config',
-              ...task
-            });
-          }
-        });
-      }
-      
-      const userTasksSnap = await this.db.ref('config/userTasks').once('value');
-      if (userTasksSnap.exists()) {
-        userTasksSnap.forEach(owner => {
-          owner.forEach(task => {
-            const taskData = task.val();
-            tasks.push({
-              id: task.key,
-              ownerId: owner.key,
-              source: 'userTasks',
-              ...taskData
+      if (this.currentTaskTab === 'partner') {
+        const configTasksSnap = await this.db.ref('config/tasks').once('value');
+        if (configTasksSnap.exists()) {
+          configTasksSnap.forEach(child => {
+            const task = child.val();
+            if (task.status === 'active') {
+              tasks.push({
+                id: child.key,
+                source: 'partner',
+                ...task
+              });
+            }
+          });
+        }
+      } else if (this.currentTaskTab === 'social') {
+        const userTasksSnap = await this.db.ref('config/userTasks').once('value');
+        if (userTasksSnap.exists()) {
+          userTasksSnap.forEach(owner => {
+            owner.forEach(task => {
+              const taskData = task.val();
+              if (taskData.status === 'active') {
+                tasks.push({
+                  id: task.key,
+                  ownerId: owner.key,
+                  source: 'social',
+                  ...taskData
+                });
+              }
             });
           });
-        });
+        }
       }
       
-      tasks = tasks.filter(task => {
-        if (this.currentTaskTab === 'main') return task.category === 'main';
-        if (this.currentTaskTab === 'partner') return task.category === 'partner';
-        if (this.currentTaskTab === 'social') return task.source === 'userTasks';
-        return true;
-      });
-      
+      tasks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       this.displayTasks(tasks);
       
     } catch (error) {
@@ -1317,14 +1358,12 @@ class AdminPanel {
       container.innerHTML = `
         <div class="empty-state">
           <i class="fas fa-list-check"></i>
-          <p>No active tasks</p>
+          <p>No active ${this.currentTaskTab} tasks</p>
           <p>Create your first task above</p>
         </div>
       `;
       return;
     }
-    
-    tasks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     
     let html = '';
     
@@ -1332,25 +1371,19 @@ class AdminPanel {
       const progress = task.maxCompletions > 0 ? 
         (task.currentCompletions || 0) / task.maxCompletions * 100 : 0;
       
-      let typeClass = 'type-main';
-      let typeText = 'Main';
-      
-      if (task.category === 'main') {
-        typeClass = 'type-main';
-        typeText = 'Main';
-      } else if (task.category === 'partner') {
-        typeClass = 'type-partner';
-        typeText = 'Partner';
-      } else if (task.source === 'userTasks') {
-        typeClass = 'type-social';
-        typeText = 'Social';
-      }
-      
+      const typeClass = task.category === 'partner' ? 'type-partner' : 'type-social';
+      const typeText = task.category === 'partner' ? 'Partner' : 'Social';
       const isCompleted = progress >= 100;
       const imageUrl = task.picture || DEFAULT_IMAGE_URL;
       const createdDate = task.createdAt ? this.formatDateTime(task.createdAt) : 'N/A';
       const verificationIcon = task.verification === 'YES' ? '🔒' : '🔓';
-      const reward = this.safeNumber(task.reward || (task.category === 'main' ? 0.02 : task.category === 'partner' ? 0.01 : 0.005));
+      const reward = this.safeNumber(task.reward || 0.01);
+      const taskType = task.type || 'channel';
+      
+      let typeIcon = '📢';
+      if (taskType === 'channel') typeIcon = '📢';
+      else if (taskType === 'group') typeIcon = '👥';
+      else if (taskType === 'website') typeIcon = '🌐';
       
       html += `
         <div class="task-item ${isCompleted ? 'completed' : ''}">
@@ -1365,6 +1398,7 @@ class AdminPanel {
             <h4>${task.name} ${verificationIcon}</h4>
             <div class="task-meta">
               <span class="task-type ${typeClass}">${typeText}</span>
+              <span class="task-badge">${typeIcon} ${taskType}</span>
               <span class="task-reward">💰 ${reward.toFixed(3)} TON</span>
               <span class="task-status ${isCompleted ? 'status-completed' : 'status-active'}">
                 ${isCompleted ? 'COMPLETED' : 'ACTIVE'}
@@ -1461,7 +1495,7 @@ class AdminPanel {
 
     try {
       let taskRef;
-      if (source === 'userTasks' && ownerId) {
+      if (source === 'social' && ownerId) {
         taskRef = this.db.ref(`config/userTasks/${ownerId}/${taskId}`);
       } else {
         taskRef = this.db.ref(`config/tasks/${taskId}`);
@@ -1490,17 +1524,13 @@ class AdminPanel {
     const maxCompletions = parseInt(document.getElementById('taskMaxCompletions').value) || 100;
     const reward = parseFloat(document.getElementById('taskReward').value) || 0;
     const typeBtn = document.querySelector('.type-btn.active');
-    const type = typeBtn ? typeBtn.dataset.type : 'main';
-    const verification = document.getElementById('taskVerification').value;
+    const category = typeBtn ? typeBtn.dataset.type : 'partner';
+    const taskType = document.getElementById('taskType').value;
+    const verification = document.getElementById('taskVerification')?.value || 'NO';
     const ownerId = document.getElementById('taskOwnerId')?.value.trim();
     
     if (!name || !link) {
       this.showNotification("Error", "Please fill all required fields", "error");
-      return;
-    }
-    
-    if (name.length > 15) {
-      this.showNotification("Error", "Task name must be 15 characters or less", "error");
       return;
     }
     
@@ -1514,7 +1544,7 @@ class AdminPanel {
       return;
     }
     
-    if (type === 'social' && !ownerId) {
+    if (category === 'social' && !ownerId) {
       this.showNotification("Error", "Owner ID is required for Social tasks", "error");
       return;
     }
@@ -1528,27 +1558,20 @@ class AdminPanel {
       }
       
       const taskData = {
+        category: category,
         name: name,
         url: formattedLink,
-        category: type === 'social' ? 'social' : type,
-        type: 'channel',
         reward: reward,
-        starReward: 1,
-        maxCompletions: maxCompletions,
+        type: taskType,
+        picture: image || DEFAULT_IMAGE_URL,
         currentCompletions: 0,
+        maxCompletions: maxCompletions,
         status: 'active',
-        verification: verification,
-        createdBy: 'admin',
         createdAt: Date.now()
       };
       
-      if (image) {
-        taskData.picture = image;
-      } else {
-        taskData.picture = DEFAULT_IMAGE_URL;
-      }
-      
-      if (type === 'social' && ownerId) {
+      if (category === 'social') {
+        taskData.verification = verification;
         taskData.owner = ownerId;
         await this.db.ref(`config/userTasks/${ownerId}`).push(taskData);
       } else {
@@ -1559,7 +1582,8 @@ class AdminPanel {
       document.getElementById('taskImage').value = '';
       document.getElementById('taskLink').value = '';
       document.getElementById('taskOwnerId').value = '';
-      document.getElementById('taskReward').value = type === 'main' ? '0.02' : type === 'partner' ? '0.01' : '0.005';
+      document.getElementById('taskReward').value = '0.01';
+      document.getElementById('taskMaxCompletions').value = '100';
       
       this.showNotification("Success", "Task created successfully!", "success");
       await this.loadTasks();
@@ -1574,7 +1598,7 @@ class AdminPanel {
     if (!confirm('Are you sure you want to delete this task?')) return;
     
     try {
-      if (source === 'userTasks' && ownerId) {
+      if (source === 'social' && ownerId) {
         await this.db.ref(`config/userTasks/${ownerId}/${taskId}`).remove();
       } else {
         await this.db.ref(`config/tasks/${taskId}`).update({
@@ -2523,7 +2547,7 @@ class AdminPanel {
 
   async sendWithdrawalNotification(userId, amount, wallet, transactionLink, userData) {
     try {
-      let message = this.settings.withdrawalMessage || "✅ Your withdrawal has been approved!\n\n💎 Amount: {amount} TON\n💰 Wallet: {wallet}\n🔗 Transaction: {transaction}\n\nThank you for using STAR Z!";
+      let message = "✅ Your withdrawal has been approved!\n\n💎 Amount: {amount} TON\n💰 Wallet: {wallet}\n🔗 Transaction: {transaction}\n\nThank you for using STAR Z!";
       
       message = message.replace('{amount}', amount.toFixed(5))
         .replace('{wallet}', wallet)
@@ -2538,19 +2562,7 @@ class AdminPanel {
         }]);
       }
       
-      if (this.settings.withdrawalButtons && this.settings.withdrawalButtons.length > 0) {
-        this.settings.withdrawalButtons.forEach(btn => {
-          if (btn.text && btn.url) {
-            inlineButtons.push([{
-              text: btn.text,
-              url: btn.url
-            }]);
-          }
-        });
-      }
-      
-      const imageUrl = this.settings.withdrawalImage || null;
-      await this.sendTelegramMessage(userId, message, inlineButtons, imageUrl);
+      await this.sendTelegramMessage(userId, message, inlineButtons, null);
       
     } catch (error) {
       console.error("Error sending notification:", error);
@@ -3123,190 +3135,265 @@ class AdminPanel {
   }
 
   async renderSettings() {
+    await this.loadSettings();
+    
+    const tonWallet = this.settings.tonWallet || "";
+    const minimumWithdraw = this.settings.minimumWithdraw;
+    const referralBonus = this.settings.referralBonus;
+    const referralPercentage = this.settings.referralPercentage;
+    const taskReward = this.settings.taskReward;
+    const taskPrice100 = this.settings.taskPrice100;
+    const adRewardTon = this.settings.adRewardTon;
+    const welcomeTasks = this.settings.welcomeTasks || [];
+    
+    let welcomeTasksHtml = '';
+    welcomeTasks.forEach((task, index) => {
+      welcomeTasksHtml += `
+        <div class="welcome-task-item" data-index="${index}">
+          <div class="task-row">
+            <input type="text" class="welcome-task-name" value="${task.name || ''}" placeholder="Task name">
+            <input type="text" class="welcome-task-url" value="${task.url || ''}" placeholder="URL">
+            <input type="number" class="welcome-task-reward" value="${task.reward || 0}" step="0.001" placeholder="Reward">
+            <button class="btn-sm btn-danger" onclick="admin.removeWelcomeTask(${index})">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    });
+    
     this.elements.contentArea.innerHTML = `
       <div class="settings-page">
         <div class="page-header">
           <h2><i class="fas fa-sliders-h"></i> Settings</h2>
-          <p>Configure admin panel settings</p>
+          <p>Configure application settings</p>
         </div>
         
         <div class="settings-section">
           <div class="settings-card">
-            <h3><i class="fas fa-envelope"></i> Withdrawal Notification Settings</h3>
-            
-            <div class="form-group">
-              <label>Withdrawal Approval Message</label>
-              <textarea id="withdrawalMessage" rows="6" placeholder="Enter message...">${this.settings.withdrawalMessage || ''}</textarea>
-              <small>Available placeholders: {amount}, {wallet}, {transaction}</small>
-            </div>
-            
-            <div class="form-group">
-              <label>Message Image URL (Optional)</label>
-              <input type="text" id="withdrawalImage" placeholder="https://example.com/image.jpg" value="${this.settings.withdrawalImage || ''}">
-              <small>Image will be sent with the message</small>
-            </div>
-            
-            <div class="inline-buttons-section">
-              <h4><i class="fas fa-th-large"></i> Message Buttons</h4>
-              <p class="section-description">Add buttons to the withdrawal approval message</p>
-              
-              <div id="withdrawalButtonsContainer">
-                ${this.renderWithdrawalButtons()}
+            <h3><i class="fas fa-wallet"></i> Wallet Settings</h3>
+            <div class="settings-row">
+              <div class="settings-field">
+                <label>TON Wallet Address</label>
+                <div class="settings-input-group">
+                  <input type="text" id="tonWallet" value="${tonWallet}" placeholder="UQ... or EQ...">
+                  <button class="settings-edit-btn" onclick="admin.editSetting('tonWallet')">
+                    <i class="fas fa-pen"></i>
+                  </button>
+                  <button class="settings-save-btn" id="saveTonWallet" style="display: none;" onclick="admin.saveSettingField('tonWallet')">
+                    <i class="fas fa-check"></i>
+                  </button>
+                </div>
               </div>
-              
-              <button class="action-btn btn-secondary" onclick="admin.addWithdrawalButton()">
-                <i class="fas fa-plus"></i> Add Button
-              </button>
-              <small>Each button up to 30 characters</small>
             </div>
-            
-            <div class="settings-actions" style="margin-top: 20px;">
-              <button class="action-btn btn-success" onclick="admin.saveSettings()">
-                <i class="fas fa-save"></i> Save Settings
-              </button>
+          </div>
+          
+          <div class="settings-card">
+            <h3><i class="fas fa-coins"></i> Withdrawal Settings</h3>
+            <div class="settings-row">
+              <div class="settings-field">
+                <label>Minimum Withdrawal (TON)</label>
+                <div class="settings-input-group">
+                  <input type="number" id="minimumWithdraw" value="${minimumWithdraw}" step="0.01" min="0">
+                  <button class="settings-edit-btn" onclick="admin.editSetting('minimumWithdraw')">
+                    <i class="fas fa-pen"></i>
+                  </button>
+                  <button class="settings-save-btn" id="saveMinimumWithdraw" style="display: none;" onclick="admin.saveSettingField('minimumWithdraw')">
+                    <i class="fas fa-check"></i>
+                  </button>
+                </div>
+              </div>
             </div>
+          </div>
+          
+          <div class="settings-card">
+            <h3><i class="fas fa-user-friends"></i> Referral Settings</h3>
+            <div class="settings-row">
+              <div class="settings-field">
+                <label>Referral Bonus (TON)</label>
+                <div class="settings-input-group">
+                  <input type="number" id="referralBonus" value="${referralBonus}" step="0.001" min="0">
+                  <button class="settings-edit-btn" onclick="admin.editSetting('referralBonus')">
+                    <i class="fas fa-pen"></i>
+                  </button>
+                  <button class="settings-save-btn" id="saveReferralBonus" style="display: none;" onclick="admin.saveSettingField('referralBonus')">
+                    <i class="fas fa-check"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="settings-field">
+                <label>Referral Commission (%)</label>
+                <div class="settings-input-group">
+                  <input type="number" id="referralPercentage" value="${referralPercentage}" step="0.5" min="0" max="100">
+                  <button class="settings-edit-btn" onclick="admin.editSetting('referralPercentage')">
+                    <i class="fas fa-pen"></i>
+                  </button>
+                  <button class="settings-save-btn" id="saveReferralPercentage" style="display: none;" onclick="admin.saveSettingField('referralPercentage')">
+                    <i class="fas fa-check"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="settings-card">
+            <h3><i class="fas fa-tasks"></i> Task & Reward Settings</h3>
+            <div class="settings-row">
+              <div class="settings-field">
+                <label>Default Task Reward (TON)</label>
+                <div class="settings-input-group">
+                  <input type="number" id="taskRewardSetting" value="${taskReward}" step="0.001" min="0">
+                  <button class="settings-edit-btn" onclick="admin.editSetting('taskRewardSetting')">
+                    <i class="fas fa-pen"></i>
+                  </button>
+                  <button class="settings-save-btn" id="saveTaskRewardSetting" style="display: none;" onclick="admin.saveSettingField('taskRewardSetting')">
+                    <i class="fas fa-check"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="settings-field">
+                <label>100 Tasks Price (TON)</label>
+                <div class="settings-input-group">
+                  <input type="number" id="taskPrice100" value="${taskPrice100}" step="0.01" min="0">
+                  <button class="settings-edit-btn" onclick="admin.editSetting('taskPrice100')">
+                    <i class="fas fa-pen"></i>
+                  </button>
+                  <button class="settings-save-btn" id="saveTaskPrice100" style="display: none;" onclick="admin.saveSettingField('taskPrice100')">
+                    <i class="fas fa-check"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="settings-field">
+                <label>Ad Reward (TON)</label>
+                <div class="settings-input-group">
+                  <input type="number" id="adRewardTon" value="${adRewardTon}" step="0.001" min="0">
+                  <button class="settings-edit-btn" onclick="admin.editSetting('adRewardTon')">
+                    <i class="fas fa-pen"></i>
+                  </button>
+                  <button class="settings-save-btn" id="saveAdRewardTon" style="display: none;" onclick="admin.saveSettingField('adRewardTon')">
+                    <i class="fas fa-check"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="settings-card">
+            <h3><i class="fas fa-greeting"></i> Welcome Tasks</h3>
+            <p class="section-description">Tasks shown to new users upon first login</p>
+            <div id="welcomeTasksContainer">
+              ${welcomeTasksHtml || '<div class="empty-tasks">No welcome tasks added yet</div>'}
+            </div>
+            <button class="action-btn btn-secondary" onclick="admin.addWelcomeTask()">
+              <i class="fas fa-plus"></i> Add Welcome Task
+            </button>
+            <button class="action-btn btn-success" onclick="admin.saveWelcomeTasks()" style="margin-top: 10px;">
+              <i class="fas fa-save"></i> Save Welcome Tasks
+            </button>
           </div>
         </div>
       </div>
     `;
-    
-    this.setupWithdrawalButtonsEvents();
   }
 
-  renderWithdrawalButtons() {
-    const buttons = this.settings.withdrawalButtons || [];
-    if (buttons.length === 0) {
-      return `
-        <div class="button-row">
-          <input type="text" class="button-text" placeholder="Button text" maxlength="30">
-          <input type="text" class="button-url" placeholder="URL">
-          <button class="btn-sm btn-danger" onclick="this.parentElement.remove()">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      `;
+  editSetting(settingId) {
+    const input = document.getElementById(settingId);
+    const editBtn = input.parentElement.querySelector('.settings-edit-btn');
+    const saveBtn = input.parentElement.querySelector('.settings-save-btn');
+    
+    if (input && editBtn && saveBtn) {
+      input.disabled = false;
+      input.style.borderColor = "var(--primary)";
+      editBtn.style.display = "none";
+      saveBtn.style.display = "flex";
+    }
+  }
+
+  async saveSettingField(settingId) {
+    const input = document.getElementById(settingId);
+    const editBtn = input.parentElement.querySelector('.settings-edit-btn');
+    const saveBtn = input.parentElement.querySelector('.settings-save-btn');
+    
+    let value = input.value;
+    
+    if (settingId === 'minimumWithdraw' || settingId === 'referralBonus' || 
+        settingId === 'taskRewardSetting' || settingId === 'taskPrice100' || 
+        settingId === 'adRewardTon') {
+      value = parseFloat(value);
+    } else if (settingId === 'referralPercentage') {
+      value = parseFloat(value);
     }
     
-    return buttons.map(btn => `
-      <div class="button-row">
-        <input type="text" class="button-text" value="${btn.text}" placeholder="Button text" maxlength="30">
-        <input type="text" class="button-url" value="${btn.url}" placeholder="URL">
-        <button class="btn-sm btn-danger" onclick="this.parentElement.remove()">
+    let firebaseKey = settingId;
+    if (settingId === 'taskRewardSetting') firebaseKey = 'taskReward';
+    
+    try {
+      await this.db.ref(`settings/${firebaseKey}`).set(value);
+      this.settings[firebaseKey] = value;
+      
+      input.disabled = true;
+      input.style.borderColor = "";
+      editBtn.style.display = "flex";
+      saveBtn.style.display = "none";
+      
+      this.showNotification("Success", `${settingId} saved successfully`, "success");
+    } catch (error) {
+      console.error(`Error saving ${settingId}:`, error);
+      this.showNotification("Error", `Failed to save ${settingId}`, "error");
+    }
+  }
+
+  addWelcomeTask() {
+    const container = document.getElementById('welcomeTasksContainer');
+    const emptyDiv = container.querySelector('.empty-tasks');
+    if (emptyDiv) emptyDiv.remove();
+    
+    const index = container.children.length;
+    const taskDiv = document.createElement('div');
+    taskDiv.className = 'welcome-task-item';
+    taskDiv.setAttribute('data-index', index);
+    taskDiv.innerHTML = `
+      <div class="task-row">
+        <input type="text" class="welcome-task-name" placeholder="Task name">
+        <input type="text" class="welcome-task-url" placeholder="URL">
+        <input type="number" class="welcome-task-reward" step="0.001" placeholder="Reward">
+        <button class="btn-sm btn-danger" onclick="admin.removeWelcomeTask(${index})">
           <i class="fas fa-times"></i>
         </button>
       </div>
-    `).join('');
-  }
-
-  setupWithdrawalButtonsEvents() {
-    const container = document.getElementById('withdrawalButtonsContainer');
-    if (!container) return;
-  }
-
-  addWithdrawalButton() {
-    const container = document.getElementById('withdrawalButtonsContainer');
-    if (!container) return;
-    
-    const rows = container.querySelectorAll('.button-row');
-    if (rows.length >= 5) {
-      this.showNotification("Warning", "Maximum 5 buttons allowed", "warning");
-      return;
-    }
-    
-    const buttonRow = document.createElement('div');
-    buttonRow.className = 'button-row';
-    buttonRow.innerHTML = `
-      <input type="text" class="button-text" placeholder="Button text" maxlength="30">
-      <input type="text" class="button-url" placeholder="URL">
-      <button class="btn-sm btn-danger" onclick="this.parentElement.remove()">
-        <i class="fas fa-times"></i>
-      </button>
     `;
-    
-    container.appendChild(buttonRow);
+    container.appendChild(taskDiv);
   }
 
-  saveSettings() {
-    const message = document.getElementById('withdrawalMessage')?.value || '';
-    const image = document.getElementById('withdrawalImage')?.value || '';
+  removeWelcomeTask(index) {
+    const taskElement = document.querySelector(`.welcome-task-item[data-index="${index}"]`);
+    if (taskElement) {
+      taskElement.remove();
+    }
+  }
+
+  async saveWelcomeTasks() {
+    const tasks = [];
+    const taskElements = document.querySelectorAll('.welcome-task-item');
     
-    const buttons = [];
-    const buttonRows = document.querySelectorAll('#withdrawalButtonsContainer .button-row');
-    buttonRows.forEach(row => {
-      const text = row.querySelector('.button-text')?.value.trim();
-      const url = row.querySelector('.button-url')?.value.trim();
-      if (text && url) {
-        buttons.push({ text, url });
+    taskElements.forEach(element => {
+      const name = element.querySelector('.welcome-task-name')?.value.trim();
+      const url = element.querySelector('.welcome-task-url')?.value.trim();
+      const reward = parseFloat(element.querySelector('.welcome-task-reward')?.value) || 0;
+      
+      if (name && url && reward > 0) {
+        tasks.push({ name, url, reward });
       }
     });
     
-    this.settings.withdrawalMessage = message;
-    this.settings.withdrawalImage = image;
-    this.settings.withdrawalButtons = buttons;
-    
-    this.saveSettings();
-    this.showNotification("Success", "Settings saved successfully", "success");
-  }
-
-  async renderFirebaseUid() {
-    const uid = this.currentUser ? this.currentUser.uid : 'Not authenticated';
-    const loginTime = this.currentUser ? this.formatDateTime(this.currentUser.metadata.lastSignInTime || Date.now()) : 'N/A';
-    
-    this.elements.contentArea.innerHTML = `
-      <div class="firebase-uid-page">
-        <div class="page-header">
-          <h2><i class="fas fa-fingerprint"></i>YOUR UID</h2>
-          <p>Your Authentication Unique Identifier</p>
-        </div>
-        
-        <div class="uid-container">
-          <div class="uid-card">
-            <div class="uid-icon">
-              <i class="fas fa-user-shield"></i>
-            </div>
-            <div class="uid-title">Your Firebase UID</div>
-            <div class="uid-value-wrapper">
-              <code class="uid-value" id="firebaseUidValue">${uid}</code>
-              <button class="uid-copy-btn" onclick="admin.copyFirebaseUid()">
-                <i class="fas fa-copy"></i> Copy
-              </button>
-            </div>
-            <div class="uid-info">
-              <div class="uid-info-item">
-                <i class="fas fa-calendar-alt"></i>
-                <span>Login Time: ${loginTime}</span>
-              </div>
-              <div class="uid-info-item">
-                <i class="fas fa-user-tag"></i>
-                <span>Role: Administrator</span>
-              </div>
-              <div class="uid-info-item">
-                <i class="fas fa-database"></i>
-                <span>Project: COINTOCASH</span>
-              </div>
-            </div>
-            <div class="uid-note">
-              <i class="fas fa-info-circle"></i>
-              You can use this UID for reference in admin activities and API calls.
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  copyFirebaseUid() {
-    const uid = this.currentUser ? this.currentUser.uid : '';
-    if (!uid) {
-      this.showNotification("Error", "No UID available", "error");
-      return;
+    try {
+      await this.db.ref('settings/welcomeTasks').set(tasks);
+      this.settings.welcomeTasks = tasks;
+      this.showNotification("Success", "Welcome tasks saved successfully", "success");
+    } catch (error) {
+      console.error("Error saving welcome tasks:", error);
+      this.showNotification("Error", "Failed to save welcome tasks", "error");
     }
-    
-    navigator.clipboard.writeText(uid).then(() => {
-      this.showNotification("Copied", "Firebase UID copied to clipboard", "success");
-    }).catch(err => {
-      this.showNotification("Error", "Failed to copy UID", "error");
-    });
   }
 
   async sendTelegramMessage(chatId, message, inlineButtons = [], imageUrl = null) {
