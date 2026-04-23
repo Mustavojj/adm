@@ -394,7 +394,8 @@ class AdminPanel {
       const appStatsSnap = await this.db.ref('appStats').once('value');
       const appStats = appStatsSnap.val() || {};
       
-      const totalUsers = appStats.totalUsers || 0;
+      const usersSnapshot = await this.db.ref('users').once('value');
+      const totalUsers = usersSnapshot.numChildren();
       const totalPayments = appStats.totalPayments || 0;
       const totalWithdrawals = appStats.totalWithdrawals || 0;
       
