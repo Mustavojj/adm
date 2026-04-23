@@ -1,19 +1,19 @@
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBdX9yaTJ5KJ8agE_pz0r8AM62VFcy5toI",
-  authDomain: "stars-pop.firebaseapp.com",
-  databaseURL: "https://stars-pop-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "stars-pop",
-  storageBucket: "stars-pop.firebasestorage.app",
-  messagingSenderId: "903403392954",
-  appId: "1:903403392954:web:63dac39d99222f76069783",
-  measurementId: "G-ZD8JYN8DPN"
-}; 
+  apiKey: "AIzaSyAneI5M2MU8cLMP0e_cI8-xknjb4vZywS0",
+  authDomain: "newprojac.firebaseapp.com",
+  databaseURL: "https://newprojac-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "newprojac",
+  storageBucket: "newprojac.firebasestorage.app",
+  messagingSenderId: "108812475894",
+  appId: "1:108812475894:web:0627c3267ba94fd9457bd7",
+  measurementId: "G-9GY09Z3E4E"
+};
 
-const BOT_TOKEN = "8302653359:AAHUifg3Olt-YwoK0hZUOrVQH-6pQ37ors4";
+const BOT_TOKEN = "8711918080:AAGvBK5U-l-Aa84rol4wTyEs8hUyFv2TX88";
 const ADMIN_PASSWORDS = ["Mostafa$500"];
-const ADMIN_TELEGRAM_ID = "1891231976";
+const ADMIN_TELEGRAM_ID = "1985474484";
 
-const DEFAULT_IMAGE_URL = "https://i.ibb.co/XxXhyZYf/file-000000006f8c720e9ab4c76b6e560062.png";
+const DEFAULT_IMAGE_URL = "https://i.ibb.co/Kj9Spc3R/file-0000000030c47246abd539cab2933811.png";
 
 class AdminPanel {
   constructor() {
