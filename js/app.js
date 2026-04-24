@@ -2548,7 +2548,7 @@ class AdminPanel {
 
   async sendWithdrawalNotification(userId, amount, wallet, transactionLink, userData) {
     try {
-      let message = "✅ Your withdrawal has been approved!\n\n💎 Amount: {amount} TON\n💰 Wallet: {wallet}\n🔗 Transaction: {transaction}\n\nThank you for using STAR Z!";
+      let message = "✅ Your withdrawal has been approved!\n\n💎 Amount: {amount} TON\n💰 Wallet: {wallet}\n🔗 Transaction: {transaction}\n\n♥ Thank you for using COINTOCASH!";
       
       message = message.replace('{amount}', amount.toFixed(5))
         .replace('{wallet}', wallet)
